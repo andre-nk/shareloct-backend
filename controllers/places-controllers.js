@@ -1,6 +1,8 @@
-const uuid = require('uuid');
+const uuid = require("uuid");
+const { validationResult } = require("express-validator");
 
 const HttpError = require("../models/http-error");
+const getCoordinatesForAddress = require("../utils/location");
 
 const DUMMY_PLACES = [
   {
@@ -64,8 +66,22 @@ const getPlacesByUserId = (req, res, next) => {
   });
 };
 
-const createPlace = (req, res, next) => {
-  const { title, description, coordinates, address, creator } = req.body;
+const createPlace = async (req, res, next) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return next(
+      new HttpError("Failed to create place due to invalid inputs. Please recheck your inputs", 422)
+    )
+  }
+
+  const { title, description, address, creator } = req.body;
+
+  let coordinates;
+  try {
+    coordinates = await getCoordinatesForAddress(address);
+  } catch (error) {
+    return next(error);
+  }
 
   const createdPlace = {
     id: uuid.v4(),
@@ -81,8 +97,52 @@ const createPlace = (req, res, next) => {
   res.status(201).json({
     place: createdPlace,
   });
-}
+};
+
+const patchPlace = (req, res, next) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    throw new HttpError("Failed to update place due to invalid inputs. Please recheck your inputs", 422);
+  }
+
+  const placeId = req.params.pid;
+  const { title, description } = req.body;
+
+  const updatedPlace = { ...DUMMY_PLACES.find((p) => p.id === placeId) };
+  const placeIndex = DUMMY_PLACES.findIndex((p) => p.id === placeId);
+
+  if (placeIndex >= 0) {
+    updatedPlace.title = title;
+    updatedPlace.description = description;
+
+    DUMMY_PLACES[placeIndex] = updatedPlace;
+
+    res.status(200).json({
+      place: updatedPlace,
+    });
+  }
+
+  throw new HttpError("Could not find place to patch for this ID", 404);
+};
+
+const deletePlace = (req, res, next) => {
+  const placeId = req.params.pid;
+
+  const placeIndex = DUMMY_PLACES.findIndex((p) => p.id === placeId);
+
+  if (placeIndex >= 0) {
+    DUMMY_PLACES.splice(placeIndex, placeIndex + 1);
+
+    res.status(200).json({
+      message: `${placeId} deleted!`,
+    });
+  }
+
+  throw new HttpError("Could not find place to delete for this ID", 404);
+};
 
 exports.getPlaceById = getPlaceById;
 exports.getPlacesByUserId = getPlacesByUserId;
 exports.createPlace = createPlace;
+exports.patchPlace = patchPlace;
+exports.deletePlace = deletePlace;
