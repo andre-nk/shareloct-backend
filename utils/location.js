@@ -20,7 +20,7 @@ async function getCoordinatesForAddress(address) {
   const coordinates = {
     lat: data[0].lat,
     lng: data[0].lon,
-  }
+  };
 
   return coordinates;
 }

@@ -3,6 +3,7 @@ const { validationResult } = require("express-validator");
 
 const HttpError = require("../models/http-error");
 const getCoordinatesForAddress = require("../utils/location");
+const Place = require("../models/place");
 
 const DUMMY_PLACES = [
   {
@@ -40,29 +41,54 @@ const DUMMY_PLACES = [
   },
 ];
 
-const getPlaceById = (req, res, next) => {
+const getPlaceById = async (req, res, next) => {
   const placeId = req.params.pid;
-  const place = DUMMY_PLACES.find((p) => p.id === placeId);
+
+  let place;
+  try {
+    place = await Place.findById(placeId);
+  } catch (err) {
+    const error = new HttpError(
+      "Something went wrong while loading these places",
+      500
+    );
+    return next(error);
+  }
 
   if (!place) {
-    throw new HttpError("Could not find place for the provided ID.", 404);
+    const error = new HttpError(
+      "Could not find place for the provided ID.",
+      404
+    );
+    return next(error);
   }
 
   res.json({
-    place,
+    place: place.toObject({ getters: true }),
   });
 };
 
-const getPlacesByUserId = (req, res, next) => {
+const getPlacesByUserId = async (req, res, next) => {
   const userId = req.params.uid;
-  const places = DUMMY_PLACES.filter((p) => p.creator === userId);
+  let places;
+
+  try {
+    places = await Place.find({ creator: userId });
+  } catch (err) {
+    const error = new HttpError(
+      "Something went wrong while loading these places",
+      500
+    );
+    return next(error);
+  }
 
   if (places.length === 0) {
-    throw new HttpError("Could not find any places for this user ID.", 404);
+    const error = new HttpError("Could not find any places for this user ID.", 404);
+    return next(error);
   }
 
   res.json({
-    places,
+    places: places.map(place => place.toObject({ getters: true })),
   });
 };
 
@@ -70,8 +96,11 @@ const createPlace = async (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return next(
-      new HttpError("Failed to create place due to invalid inputs. Please recheck your inputs", 422)
-    )
+      new HttpError(
+        "Failed to create place due to invalid inputs. Please recheck your inputs",
+        422
+      )
+    );
   }
 
   const { title, description, address, creator } = req.body;
@@ -83,16 +112,25 @@ const createPlace = async (req, res, next) => {
     return next(error);
   }
 
-  const createdPlace = {
-    id: uuid.v4(),
+  const createdPlace = new Place({
     title,
     description,
-    location: coordinates,
+    image:
+      "https://upload.wikimedia.org/wikipedia/commons/1/1f/Empire_State_Building_%28aerial%29.jpg",
     address,
+    location: coordinates,
     creator,
-  };
+  });
 
-  DUMMY_PLACES.push(createdPlace);
+  try {
+    await createdPlace.save();
+  } catch (err) {
+    const error = new HttpError(
+      "Failed while creating this place, please try again!",
+      500
+    );
+    return next(error);
+  }
 
   res.status(201).json({
     place: createdPlace,
@@ -102,7 +140,10 @@ const createPlace = async (req, res, next) => {
 const patchPlace = (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    throw new HttpError("Failed to update place due to invalid inputs. Please recheck your inputs", 422);
+    throw new HttpError(
+      "Failed to update place due to invalid inputs. Please recheck your inputs",
+      422
+    );
   }
 
   const placeId = req.params.pid;
