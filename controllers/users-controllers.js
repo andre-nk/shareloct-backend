@@ -1,91 +1,113 @@
-const uuid = require("uuid");
 const { validationResult } = require("express-validator");
 
 const HttpError = require("../models/http-error");
+const User = require("../models/user");
 
-const DUMMY_USERS = [
-  {
-    id: "u1",
-    name: "John Doe",
-    email: "johndoe@gmail.com",
-    password: "johndoe",
-  },
-];
+const getUsers = async (req, res, next) => {
+  let users;
+  try {
+    users = await User.find({}, "-password");
+  } catch (err) {
+    const error = new HttpError(
+      "Fetching users failed. Please try again!",
+      500
+    );
+    return next(error);
+  }
 
-const getUsers = (req, res, next) => {
-  res.status(200).json({
-    users: DUMMY_USERS,
-  });
+  res.json({ users: users.map((user) => user.toObject({ getters: true })) });
 };
 
-const signup = (req, res, next) => {
+const signup = async (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    throw new HttpError(
+    const error = new HttpError(
       "Failed to signing you up. Please recheck your inputs",
       422
     );
+
+    return next(error);
   }
 
   const { name, email, password } = req.body;
 
-  const identifiedUser = DUMMY_USERS.find((user) => {
-    return user.email === email;
-  });
-
-  if (identifiedUser) {
-    throw new HttpError(
-      "An account with this e-mail address already exist. Try to log in?",
-      401
-    );
+  let existingUser;
+  try {
+    existingUser = await User.findOne({ email: email });
+  } catch (err) {
+    const error = new HttpError("Signing up failed. Please try again!", 500);
+    return next(error);
   }
 
-  const newUser = {
-    id: uuid.v4(),
+  if (existingUser) {
+    const error = new HttpError(
+      "Signing up failed. This e-mail address is already used. Log in instead?",
+      422
+    );
+    return next(error);
+  }
+
+  const createdUser = new User({
     name,
     email,
+    image:
+      "https://live.staticflickr.com/65535/https://static.wikia.nocookie.net/breakingbad/images/0/05/Season_2_-_Jesse.jpg",
     password,
-  };
+    places: [],
+  });
 
-  DUMMY_USERS.push(newUser);
+  try {
+    await createdUser.save();
+  } catch (err) {
+    const error = new HttpError("Signing up failed. Please try again!", 500);
+    return next(error);
+  }
 
   res.status(201).json({
-    user: newUser,
+    user: createdUser.toObject({ getters: true }),
   });
 };
 
-const login = (req, res, next) => {
+const login = async (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    throw new HttpError(
+    const error = new HttpError(
       "Failed to logging you up. Please recheck your inputs",
       422
     );
+
+    return next(error);
   }
 
   const { email, password } = req.body;
 
-  const identifiedUser = DUMMY_USERS.find((user) => {
-    return user.email === email;
-  });
+  let existingUser;
 
-  if (!identifiedUser) {
-    throw new HttpError(
-      "Could not identify user. Your e-mail address might be wrong",
-      401
-    );
+  try {
+    existingUser = await User.findOne({ email: email });
+  } catch (err) {
+    const error = new HttpError("Logging in failed. Please try again!", 500);
+    return next(error);
   }
 
-  if (identifiedUser.password !== password) {
-    throw new HttpError(
-      "Could not identify user. Your password might be wrong",
+  if (!existingUser) {
+    const error = new HttpError(
+      "This e-mail address does not associated with any account. Please try again!",
       401
     );
+    return next(error);
+  }
+
+  if (existingUser.password !== password) {
+    const error = new HttpError(
+      "Log in failed due to wrong password. Please try again!",
+      401
+    );
+    return next(error);
   }
 
   res.status(200).json({
     message: "Logged in successfully!",
-    user: identifiedUser,
   });
 };
 

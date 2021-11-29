@@ -19,7 +19,6 @@ app.use((req, res, next) => {
 });
 
 app.use((error, req, res, next) => {
-  //check is response sent
   if (res.headerSent) {
     return next(error);
   }
