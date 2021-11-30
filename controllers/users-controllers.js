@@ -50,8 +50,7 @@ const signup = async (req, res, next) => {
   const createdUser = new User({
     name,
     email,
-    image:
-      "https://live.staticflickr.com/65535/https://static.wikia.nocookie.net/breakingbad/images/0/05/Season_2_-_Jesse.jpg",
+    image: "https://static.wikia.nocookie.net/breakingbad/images/0/05/Season_2_-_Jesse.jpg",
     password,
     places: [],
   });
@@ -108,6 +107,7 @@ const login = async (req, res, next) => {
 
   res.status(200).json({
     message: "Logged in successfully!",
+    user: existingUser.toObject({ getters: true }),
   });
 };
 

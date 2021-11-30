@@ -42,7 +42,8 @@ app.use((error, req, res, next) => {
 
 mongoose
   .connect(
-    "mongodb+srv://fullstack-dre:Xzv5jWOPmhe8zLTL@cluster0.a50wi.mongodb.net/shareloct?retryWrites=true&w=majority"
+    "mongodb+srv://fullstack-dre:Xzv5jWOPmhe8zLTL@cluster0.a50wi.mongodb.net/shareloct?retryWrites=true&w=majority",
+    { useNewUrlParser: true }
   )
   .then(() => {
     app.listen(2000);
