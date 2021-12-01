@@ -50,7 +50,7 @@ const signup = async (req, res, next) => {
   const createdUser = new User({
     name,
     email,
-    image: "https://static.wikia.nocookie.net/breakingbad/images/0/05/Season_2_-_Jesse.jpg",
+    image: req.file.path,
     password,
     places: [],
   });
