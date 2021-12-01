@@ -1,6 +1,7 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const bodyParser = require("body-parser");
+const dotenv = require("dotenv");
 
 const placesRoutes = require("./routes/places-routes");
 const usersRoutes = require("./routes/users-routes");
@@ -40,9 +41,11 @@ app.use((error, req, res, next) => {
   res.json({ message: error.message || "An unknown error occurred!" });
 });
 
+dotenv.config();
+
 mongoose
   .connect(
-    "mongodb+srv://fullstack-dre:Xzv5jWOPmhe8zLTL@cluster0.a50wi.mongodb.net/shareloct?retryWrites=true&w=majority",
+    `mongodb+srv://${process.env.MONGO_USERNAME}:${process.env.MONGO_KEY}@cluster0.a50wi.mongodb.net/${process.env.MONGO_PATH}?retryWrites=true&w=majority`,
     { useNewUrlParser: true }
   )
   .then(() => {
